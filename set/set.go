@@ -1,72 +1,67 @@
 package set
 
 import (
-	"sync"
-
-	"github.com/Moeay1/gostl"
+	"github.com/Moeay1/gostl/i"
 )
 
-// Set 集合 需要实现 HashAble 接口 Set是线程安全的
-type Set struct {
-	lock  sync.RWMutex
-	items map[string]gostl.HashAble
-}
+type Set[T comparable] map[T]struct{}
 
-func New(items ...gostl.HashAble) *Set {
-	set := Set{
-		lock:  sync.RWMutex{},
-		items: make(map[string]gostl.HashAble),
-	}
-	for i := 0; i < len(items); i++ {
-		set.items[items[i].Hash()] = items[i]
+func New[T comparable](v ...T) *Set[T] {
+	set := make(Set[T], len(v))
+	for _, val := range v {
+		set.Add(val)
 	}
 	return &set
 }
 
-// Add 添加元素，无论是否有该元素
-func (s *Set) Add(items ...gostl.HashAble) {
-	s.lock.Lock()
-	for i := 0; i < len(items); i++ {
-		s.items[items[i].Hash()] = items[i]
+func NewByLen[T comparable](length int, v ...T) *Set[T] {
+	set := make(Set[T], length)
+	for _, val := range v {
+		set.Add(val)
 	}
-	s.lock.Unlock()
+	return &set
 }
 
-// Discard 删除元素，无论是否有该元素
-func (s *Set) Discard(items ...gostl.HashAble) {
-	s.lock.Lock()
-	for i := 0; i < len(items); i++ {
-		delete(s.items, items[i].Hash())
+func NewByIter[T comparable](iter i.Iter[T]) *Set[T] {
+	set := New[T]()
+	for val := range iter.Iter() {
+		set.Add(val)
 	}
-	s.lock.Unlock()
+	return set
 }
 
-// Has 判断是否有某元素
-func (s *Set) Exist(h gostl.HashAble) bool {
-	s.lock.RLock()
-	_, ok := s.items[h.Hash()]
-	s.lock.RUnlock()
-	return ok
+func (s *Set[T]) Add(v ...T) {
+	for _, val := range v {
+		(*s)[val] = struct{}{}
+	}
 }
 
-// Iter 遍历
-func (s *Set) Iter() <-chan interface{} {
-	iter := make(chan interface{})
+func (s *Set[T]) Clear() {
+	*s = make(Set[T])
+}
+
+func (s *Set[T]) Contains(val T) bool {
+	_, isContains := (*s)[val]
+	return isContains
+}
+
+func (s *Set[T]) Iter() <-chan T {
+	ch := make(chan T)
 	go func() {
-		s.lock.RLock()
-		for _, e := range s.items {
-			iter <- e
+		for e := range *s {
+			ch <- e
 		}
-		s.lock.RUnlock()
-		close(iter)
+		close(ch)
 	}()
-	return iter
+	return ch
 }
 
-// Len 长度
-func (s *Set) Len() int {
-	s.lock.RLock()
-	length := len(s.items)
-	s.lock.RUnlock()
-	return length
+func (s *Set[T]) Len() int {
+	return len(*s)
+}
+
+func (s *Set[T]) Del(v ...T) {
+	for _, val := range v {
+		delete(*s, val)
+	}
 }

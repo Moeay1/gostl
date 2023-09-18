@@ -1,55 +1,87 @@
 package list
 
 import (
-	"sync"
+	"github.com/Moeay1/gostl/i"
 )
 
-type List struct {
-	lock  sync.RWMutex
-	items []interface{}
-}
+type List[T comparable] []T
 
-func New(items ...interface{}) *List {
-	list := List{
-		lock:  sync.RWMutex{},
-		items: make([]interface{}, 0, len(items)),
-	}
-	list.items = append(list.items, items...)
+func New[T comparable](v ...T) *List[T] {
+	list := make(List[T], 0, len(v))
+	list.Add(v...)
 	return &list
 }
 
-// Append 添加元素
-func (l *List) Append(items ...interface{}) {
-	l.lock.Lock()
-	l.items = append(l.items, items...)
-	l.lock.Unlock()
+func NewByLen[T comparable](length int, v ...T) *List[T] {
+	list := make(List[T], 0, length)
+	list.Add(v...)
+	return &list
 }
 
-// Len 长度
-func (l *List) Len() int {
-	l.lock.RLock()
-	length := len(l.items)
-	l.lock.RUnlock()
-	return length
+func NewByIter[T comparable](iter i.Iter[T]) *List[T] {
+	list := New[T]()
+	for val := range iter.Iter() {
+		list.Add(val)
+	}
+	return list
 }
 
-// Iter 遍历
-func (l *List) Iter() <-chan interface{} {
-	iter := make(chan interface{})
-	go func() {
-		l.lock.RLock()
-		for _, e := range l.items {
-			iter <- e
+func NewByLenIter[T comparable](lenIter i.LenIter[T]) *List[T] {
+	list := NewByLen[T](lenIter.Len())
+	for val := range lenIter.Iter() {
+		list.Add(val)
+	}
+	return list
+}
+
+func (l *List[T]) Add(items ...T) {
+	*l = append(*l, items...)
+}
+
+func (l *List[T]) Clear() {
+	*l = make([]T, 0)
+}
+
+func (l *List[T]) Contains(val T) bool {
+	for i := range *l {
+		if val == (*l)[i] {
+			return true
 		}
-		l.lock.RUnlock()
-		close(iter)
-	}()
-	return iter
+	}
+	return false
 }
 
-// Swap 交换列表中两项
-func (l *List) Swap(n, m int) {
-	l.lock.Lock()
-	l.items[n], l.items[m] = l.items[m], l.items[n]
-	l.lock.Unlock()
+func (l *List[T]) ToSlice() []T {
+	return []T(*l)
+}
+
+func (l *List[T]) Reverse() {
+	for j, k := 0, len(*l)-1; j < k; j, k = j+1, k-1 {
+		(*l)[j], (*l)[k] = (*l)[k], (*l)[j]
+	}
+}
+
+func (l *List[T]) Iter() <-chan T {
+	ch := make(chan T)
+	go func() {
+		for _, e := range *l {
+			ch <- e
+		}
+		close(ch)
+	}()
+	return ch
+}
+
+func (l *List[T]) Len() int {
+	return len(*l)
+}
+
+func (l *List[T]) Insert(i int, val T) {
+	newList := append((*l)[:i], append([]T{val}, (*l)[i:]...)...)
+	*l = newList
+}
+
+func (l *List[T]) Del(i int) {
+	newList := append((*l)[:i], (*l)[i+1:]...)
+	*l = newList
 }

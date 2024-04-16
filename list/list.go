@@ -1,8 +1,13 @@
 package list
 
 import (
+	"sort"
+
 	"github.com/Moeay1/gostl/i"
+	"github.com/Moeay1/gostl/iter"
 )
+
+var _ i.List[int] = (*List[int])(nil)
 
 type List[T comparable] []T
 
@@ -36,6 +41,12 @@ func NewByLenIter[T comparable](lenIter i.LenIter[T]) *List[T] {
 
 func (l *List[T]) Add(items ...T) {
 	*l = append(*l, items...)
+}
+
+func (l *List[T]) ForEach(f func(T)) {
+	for _, e := range *l {
+		f(e)
+	}
 }
 
 func (l *List[T]) Clear() {
@@ -84,4 +95,37 @@ func (l *List[T]) Insert(i int, val T) {
 func (l *List[T]) Del(i int) {
 	newList := append((*l)[:i], (*l)[i+1:]...)
 	*l = newList
+}
+
+func (l *List[T]) Sort(less func(a, b T) bool) {
+	sort.SliceStable(*l, func(i, j int) bool {
+		return less((*l)[i], (*l)[j])
+	})
+}
+
+func (l *List[T]) Get(i int) T {
+	return (*l)[i]
+}
+
+func (l *List[T]) Set(i int, val T) {
+	(*l)[i] = val
+}
+
+func (l *List[T]) AddAll(iter i.Iter[T]) {
+	for val := range iter.Iter() {
+		l.Add(val)
+	}
+}
+
+func (l *List[T]) Stream() *iter.Iter[T] {
+	return iter.New[T](l)
+}
+
+func ToMap[T, K comparable, V any](l *List[T], f func(T) (K, V)) map[K]V {
+	m := make(map[K]V)
+	for _, e := range *l {
+		k, v := f(e)
+		m[k] = v
+	}
+	return m
 }

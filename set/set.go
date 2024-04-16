@@ -2,7 +2,10 @@ package set
 
 import (
 	"github.com/Moeay1/gostl/i"
+	"github.com/Moeay1/gostl/iter"
 )
+
+var _ i.Set[int] = (*Set[int])(nil)
 
 type Set[T comparable] map[T]struct{}
 
@@ -36,6 +39,12 @@ func (s *Set[T]) Add(v ...T) {
 	}
 }
 
+func (s *Set[T]) ForEach(f func(T)) {
+	for e := range *s {
+		f(e)
+	}
+}
+
 func (s *Set[T]) Clear() {
 	*s = make(Set[T])
 }
@@ -64,4 +73,20 @@ func (s *Set[T]) Del(v ...T) {
 	for _, val := range v {
 		delete(*s, val)
 	}
+}
+
+func (s *Set[T]) Stream() *iter.Iter[T] {
+	return iter.New[T](s)
+}
+
+func (s *Set[T]) Union(s2 i.Set[T]) i.Set[T] {
+	return Union[T](s, s2)
+}
+
+func (s *Set[T]) Difference(s2 i.Set[T]) i.Set[T] {
+	return Difference[T](s, s2)
+}
+
+func (s *Set[T]) Intersect(s2 i.Set[T]) i.Set[T] {
+	return Intersect[T](s, s2)
 }
